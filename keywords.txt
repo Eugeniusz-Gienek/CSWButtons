@@ -1,0 +1,31 @@
+#######################################
+# Syntax Coloring Map For CustomSmartWatchButtons
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+CSmartWatchButtons	KEYWORD1
+SWbtns	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+addButton	KEYWORD2
+attachInterrupts	KEYWORD2
+tickTimer	KEYWORD2
+resetTimer	KEYWORD2
+checkEventsBlocked	KEYWORD2
+onLongpress	KEYWORD2
+checkEventsBlocked	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+button_recheck_interval_ms	LITERAL1
+button_click_flow_limit	LITERAL1
+button_min_recheck_interval_ms	LITERAL1
+button_recheck_interval_longpress_ms	LITERAL1
