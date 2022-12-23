@@ -9,13 +9,13 @@ The [SimpleTimer library](https://github.com/jfturcot/SimpleTimer) is located fo
 And if you'd like to install this software on the same diy smartwatch, please don't forget to follow the manual for the epaper libraries from the [original repo](https://github.com/Xinyuan-LilyGO/E-Paper-watch).
 
 
-  <ol>  <li>Install the following two dependencies <ol>
-        <li> [Adafruit-GFX-Library](https://github.com/adafruit/Adafruit-GFX-Library) </li>
-        <li>please use this branch [lewisxhe/fork/GxEPD](https://github.com/lewisxhe/GxEPD) ,Please note that referencing the wrong branch will cause the program to fail to compile</li></ol></li>
-    <li>Copy all the folders in the lib directory to <code>"C:\User\<YourName>\Documents\Arduino\libraries"</code></li>
-    <li>At the top of the sketch, define the model of the board and screen to be used</li>
-    <li>Select <code>ESP32 Dev Module</code> in the development board, and keep the other options as default</li>
-    <li>If you do not find the ESP32 series in the development board, then you should see the following installation method [How to install ESP32 in ArduinoIDE](https://github.com/espressif/arduino-esp32/blob/master/docs/arduino-ide/boards_manager.md) </li>
-    <li>For the version of the board you purchased, please check the product link below</li>
-    <li>When you think there is a problem with your board, you can pull the binary file corresponding to your screen model in the firmware directory, follow the <code>SETTING.png</code> settings in the directory, download it to the board, and then observe the execution.</li>
- </ol>
+  > - Install the following two dependencies
+  >       - [Adafruit-GFX-Library](https://github.com/adafruit/Adafruit-GFX-Library)
+>         - please use this branch [lewisxhe/fork/GxEPD](https://github.com/lewisxhe/GxEPD) ,Please note that referencing the wrong branch will cause the program to fail to compile
+>     - Copy all the folders in the lib directory to <code>"C:\User\<YourName>\Documents\Arduino\libraries"</code>
+>     - At the top of the sketch, define the model of the board and screen to be used
+>     - Select <code>ESP32 Dev Module</code> in the development board, and keep the other options as default
+>     - If you do not find the ESP32 series in the development board, then you should see the following installation method [How to install ESP32 in ArduinoIDE](https://github.com/espressif/arduino-esp32/blob/master/docs/arduino-ide/boards_manager.md)
+>     - For the version of the board you purchased, please check the product link below
+>     - When you think there is a problem with your board, you can pull the binary file corresponding to your screen model in the firmware directory, follow the <code>SETTING.png</code> settings in the directory, download it to the board, and then observe the execution.
+> -- <cite>[Xinyuan-LilyGO](https://github.com/Xinyuan-LilyGO)</cite>
