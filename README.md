@@ -5,3 +5,5 @@ Part of a project which I am working on - the diy smartwatch software, which I a
 I think it may be useful for someone else so I make this as a library with the ability to use more than just one button as it is in the case of the mentioned above smartwatch.
 
 The [SimpleTimer library](https://github.com/jfturcot/SimpleTimer) is located for convenience in the examples folder - put it in the Arduino libraries folder.
+
+And if you'd like to install this software on the same diy smartwatch, please don't forget to follow the manual for the epaper libraries from the [original repo](https://github.com/Xinyuan-LilyGO/E-Paper-watch).
