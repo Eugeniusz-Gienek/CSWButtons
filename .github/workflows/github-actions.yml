@@ -1,2 +1,9 @@
-- name: arduino/arduino-lint-action
-  uses: arduino/arduino-lint-action@v1.0.2
+name: My GitHub Actions
+run-name: code verification
+on: [push]
+jobs:
+  lint:
+  runs-on: ubuntu-latest
+  steps:
+    - name: arduino/arduino-lint-action
+      uses: arduino/arduino-lint-action@v1.0.2
