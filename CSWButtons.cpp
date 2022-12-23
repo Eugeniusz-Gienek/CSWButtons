@@ -18,7 +18,7 @@ using namespace swbtns;
 #define VERIFICATION_BTN_TIMEOUT 500
 #define SLF_RESET_TIMEOUT 2000
 #define VRF_TIMEOUT 100
-#define DEBUG 1
+#define DEBUG 0
 
 typedef void (*VoidFunctionWithNoParameters) (void);
 typedef void (*VoidFunctionWithOneParameter) (int);
@@ -1058,9 +1058,7 @@ void CSmartWatchButtons::attachInterrupts() {
     Serial.print("Pinmode for the pin ");
     Serial.print(btnPins[i]);
     Serial.print(" with nr ");
-    #endif
     Serial.print(i);
-    #if defined(DEBUG) && DEBUG>=10
     Serial.println(" is set as PULLUP. Attaching interrupt...");
     #endif
     attachInterrupt (btnPins[i], intrp_functions[i], CHANGE);
