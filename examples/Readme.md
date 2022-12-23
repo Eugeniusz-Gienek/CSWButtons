@@ -1,0 +1,1 @@
+An example added - click three times in a row in order to put the ESP32 to deep sleep (triple-click I mean)
