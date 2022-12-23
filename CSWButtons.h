@@ -10,8 +10,8 @@
   */
 
 
-#ifndef CSmartWatchButtons_h
-#define CSmartWatchButtons_h
+#ifndef CSWButtons_h
+#define CSWButtons_h
 #include <stdint.h>
 
 namespace swbtns {
@@ -27,9 +27,9 @@ struct qButton {
 typedef void (*VoidFunctionWithNoParameters) (void);
 typedef void (*VoidFunctionWithOneParameter) (int);
 
-class CSmartWatchButtons{
+class CSWButtons{
   public:
-    CSmartWatchButtons();
+    CSWButtons();
     void addButton(int pin);
     void attachInterrupts(void);
     void tickTimer(void);

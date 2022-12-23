@@ -666,11 +666,11 @@ SWbtns btns;
 
 void _callbackMulticlick(int pin, int _click_count,bool longPress=false) {
   int click_count=_click_count+1;
-  if(click_count > CSmartWatchButtons::button_click_flow_limit) click_count=CSmartWatchButtons::button_click_flow_limit;
+  if(click_count > CSWButtons::button_click_flow_limit) click_count=CSWButtons::button_click_flow_limit;
   _btn_struct btn;
   btn = btns[pin];
   if( longPress || (
-    (click_count == 1) && ((btn._button_unpress_time - btn._button_press_time) > CSmartWatchButtons::button_recheck_interval_longpress_ms))
+    (click_count == 1) && ((btn._button_unpress_time - btn._button_press_time) > CSWButtons::button_recheck_interval_longpress_ms))
     ) {
     #if defined(DEBUG) && DEBUG>=1
     Serial.println("MULTICLICK. LONGPRESS.");
@@ -694,7 +694,7 @@ int _sttmout(long d, timer_callback f) {
   Serial.print("Timers: ");
   Serial.println(stimer.getNumTimers());
   #endif
-  if(stimer.getNumTimers() > CSmartWatchButtons::button_click_flow_limit) {
+  if(stimer.getNumTimers() > CSWButtons::button_click_flow_limit) {
     #if defined(DEBUG) && DEBUG>=10
     Serial.println("Timer overflow! NOT adding a new timer!");
     #endif
@@ -716,7 +716,7 @@ void handleTimer(int pinNum) {
   #endif
   btn = btns[pin];
   int clc = btn.click_count;
-  if(clc > CSmartWatchButtons::button_click_flow_limit) {
+  if(clc > CSWButtons::button_click_flow_limit) {
     #if defined(DEBUG) && DEBUG>=1
     Serial.println("TOO MUCH CLICKS. Ignoring this one.");
     #endif
@@ -731,7 +731,7 @@ void handleTimer(int pinNum) {
   #if defined(DEBUG) && DEBUG>=10
   Serial.print("Recursion level: ");Serial.println(btn_recursion);
   #endif
-  if(btn_recursion > CSmartWatchButtons::button_click_flow_limit) {
+  if(btn_recursion > CSWButtons::button_click_flow_limit) {
     #if defined(DEBUG) && DEBUG>=10
     Serial.print("Recursion overflow. Resetting.");
     #endif
@@ -755,9 +755,9 @@ void handleTimer(int pinNum) {
     
     //multiclick.
     if(btn.click_count == btn.unclick_count) {
-      if(btn.click_count > CSmartWatchButtons::button_click_flow_limit) {
-        btn.click_count = CSmartWatchButtons::button_click_flow_limit;
-        btn.unclick_count = CSmartWatchButtons::button_click_flow_limit;
+      if(btn.click_count > CSWButtons::button_click_flow_limit) {
+        btn.click_count = CSWButtons::button_click_flow_limit;
+        btn.unclick_count = CSWButtons::button_click_flow_limit;
       }
       //multickick finished
       #if defined(DEBUG) && DEBUG>=10
@@ -771,15 +771,15 @@ void handleTimer(int pinNum) {
       return;
     }
     else if(
-        (btn.click_count <= CSmartWatchButtons::button_click_flow_limit)
+        (btn.click_count <= CSWButtons::button_click_flow_limit)
         &&
-        (btn.unclick_count <= CSmartWatchButtons::button_click_flow_limit)
+        (btn.unclick_count <= CSWButtons::button_click_flow_limit)
       ) {
         #if defined(DEBUG) && DEBUG>=10
         Serial.print("Clicks: ");Serial.println(btn.click_count);
         Serial.print("Unclicks: ");Serial.println(btn.unclick_count);
         #endif
-        if(btn_recursion <= CSmartWatchButtons::button_click_flow_limit) {
+        if(btn_recursion <= CSWButtons::button_click_flow_limit) {
           btns.Update_btn_recursion(pin);
           //set new timeout - for the flow
           #if defined(DEBUG) && DEBUG>=10
@@ -882,7 +882,7 @@ void handleInterrupt(int pinNum) {
   if(eventType == 1) {
     //on UNPRESS do this:
     if(
-      (unPressedTime-btn._button_unpress_time>CSmartWatchButtons::button_min_recheck_interval_ms)
+      (unPressedTime-btn._button_unpress_time>CSWButtons::button_min_recheck_interval_ms)
       ||
       (unPressedTime < btn._button_unpress_time)
       ) {
@@ -912,7 +912,7 @@ void handleInterrupt(int pinNum) {
     Serial.println("PRESS DETECTED!!!");
     #endif
     if(
-      (pressedTime-btn._button_press_time>CSmartWatchButtons::button_min_recheck_interval_ms)
+      (pressedTime-btn._button_press_time>CSWButtons::button_min_recheck_interval_ms)
       ||
       (pressedTime < btn._button_press_time)
       ) {
@@ -928,7 +928,7 @@ void handleInterrupt(int pinNum) {
           #if defined(DEBUG) && DEBUG>=10
           Serial.println("Setting up timeout.");
           #endif
-          if(btn.click_count+1 <= CSmartWatchButtons::button_click_flow_limit) {
+          if(btn.click_count+1 <= CSWButtons::button_click_flow_limit) {
             btns.Update_timer_id(pin,_sttmout(VERIFICATION_BTN_TIMEOUT, btns._tmoFunctions[btn.indx_num]));
           }
           #if defined(DEBUG) && DEBUG>=10
@@ -1019,29 +1019,29 @@ VoidFunctionWithNoParameters tmo_functions[]   = {tmo_handler_pinKey1,tmo_handle
 
 //////////////////////////////////////////////////////////////////////////////
 
-CSmartWatchButtons::CSmartWatchButtons() {
+CSWButtons::CSWButtons() {
 }
 
-void CSmartWatchButtons::addButton(int pin) {
+void CSWButtons::addButton(int pin) {
     btnPins.push_back(pin);
   }
 
-void CSmartWatchButtons::onClick(int pin, VoidFunctionWithOneParameter onclick_function, int click_count=1) {
+void CSWButtons::onClick(int pin, VoidFunctionWithOneParameter onclick_function, int click_count=1) {
   btns.onclick(pin, onclick_function, click_count);
 }
 
-void CSmartWatchButtons::onLongpress(int pin, VoidFunctionWithOneParameter onclick_function) {
+void CSWButtons::onLongpress(int pin, VoidFunctionWithOneParameter onclick_function) {
   btns.onlongpress(pin, onclick_function);
 }
 
-bool CSmartWatchButtons::checkEventsBlocked() {
+bool CSWButtons::checkEventsBlocked() {
   return _firstRun || _eventsBlocked;
 }
-void CSmartWatchButtons::checkEventsBlocked(bool v) {
+void CSWButtons::checkEventsBlocked(bool v) {
   _eventsBlocked = v;
 }
 
-void CSmartWatchButtons::attachInterrupts() {
+void CSWButtons::attachInterrupts() {
   _firstRun=true;
   #if defined(DEBUG) && DEBUG>=10
   Serial.println("First run set.");
@@ -1078,7 +1078,7 @@ void CSmartWatchButtons::attachInterrupts() {
   delay(500);
   #endif
 }
-void CSmartWatchButtons::tickTimer() {
+void CSWButtons::tickTimer() {
   if(_firstRun) {
     btns.setEventsBlocked(false);
     _firstRun=false;
@@ -1089,6 +1089,6 @@ void CSmartWatchButtons::tickTimer() {
   //Serial.println(uxTaskGetStackHighWaterMark(NULL));
   //if((millis() % SLF_RESET_TIMEOUT) <=VRF_TIMEOUT) this->resetTimer();
 }
-void CSmartWatchButtons::resetTimer() {
+void CSWButtons::resetTimer() {
   SimpleTimer stimer;
 }

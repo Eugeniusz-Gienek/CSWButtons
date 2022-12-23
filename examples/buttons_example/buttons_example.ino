@@ -44,7 +44,7 @@ GxIO_Class io(SPI, /*CS=*/ 15, /*DC=*/2, /*RST=*/17);
 GxEPD_Class display(io, /*RST=*/17, /*BUSY=*/16);
 
 //init the button(s) of the smartwatch
-swbtns::CSmartWatchButtons Buttons;
+swbtns::CSWButtons Buttons;
 
 void powerDownSys() {
   pinMode(PIN_MOTOR, OUTPUT);

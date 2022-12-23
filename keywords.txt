@@ -1,12 +1,12 @@
 #######################################
-# Syntax Coloring Map For CustomSmartWatchButtons
+# Syntax Coloring Map For CSWButtons
 #######################################
 
 #######################################
 # Datatypes (KEYWORD1)
 #######################################
 
-CSmartWatchButtons	KEYWORD1
+CSWButtons	KEYWORD1
 SWbtns	KEYWORD1
 
 #######################################
