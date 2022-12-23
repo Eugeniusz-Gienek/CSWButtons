@@ -1,9 +1,8 @@
-using namespace std;
-#define DEBUG 1
 #include <GxEPD.h>
 #include <GxDEPG0150BN/GxDEPG0150BN.h>    // 1.54" b/w 200x200
 #include <GxIO/GxIO_SPI/GxIO_SPI.h>
 #include <GxIO/GxIO.h>
+
 #include <CSWButtons.h>
 
 
@@ -11,11 +10,10 @@ using namespace std;
 //Constants
 ////////////////////////////////////////////////////////////////////////
 
-#define LOAD_GFXFF 1
 #define PIN_MOTOR 4
 #define PIN_KEY 35
 #define PWR_EN 5
-// #define Backlight 33
+#define Backlight 33
 
 #define SPI_SCK 14
 #define SPI_DIN 13
@@ -24,6 +22,12 @@ using namespace std;
 #define SRAM_CS -1
 #define EPD_RESET 17
 #define EPD_BUSY 16
+
+int EPD_dispIndex; // The index of the e-Paper's type
+uint8_t EPD_Image[5000] = {0};
+uint16_t EPD_Image_count = 0;
+GxIO_Class io(SPI, /*CS=*/ 15, /*DC=*/2, /*RST=*/17);
+GxEPD_Class display(io, /*RST=*/17, /*BUSY=*/16);
 
 #define ROTATION_DIR 0
 
@@ -34,14 +38,7 @@ using namespace std;
 
 ////////////////////////////////////////////////////////////////////////
 //EOF Constants
-////////////////////////////////////////////////////////////////////////
-
-int EPD_dispIndex; // The index of the e-Paper's type
-uint8_t EPD_Image[5000] = {0};
-uint16_t EPD_Image_count = 0;
-
-GxIO_Class io(SPI, /*CS=*/ 15, /*DC=*/2, /*RST=*/17);
-GxEPD_Class display(io, /*RST=*/17, /*BUSY=*/16);
+///////////////////////////////////////////////////////////////////////
 
 //init the button(s) of the smartwatch
 swbtns::CSWButtons Buttons;
@@ -89,29 +86,21 @@ void showFullscreenCleanupCallback(uint32_t v) {
 }
 
 void setup() {
-  // put your setup code here, to run once:
-  #if defined(DEBUG) && DEBUG>=1
   Serial.begin(115200);
   delay(10);
-  Serial.println("Smartwatch is in DEBUG mode. Starting system...");
-  Serial.print("Debug level: ");
-  Serial.println(DEBUG);
-  #endif
+  Serial.println("Buttons test");
   SPI.begin(SPI_SCK, -1, SPI_DIN, EPD_CS);
   pinMode(PWR_EN,OUTPUT);
+
+  digitalWrite(PWR_EN,HIGH);
+  
   display.init();
-  display.update();
-  display.setRotation(ROTATION_DIR);
+  display.setRotation(0);
   display.setTextColor(GxEPD_BLACK);
-  display.updateWindow(0, 0, GxEPD_WIDTH, GxEPD_HEIGHT, false);
-  display.fillScreen(GxEPD_BLACK);
-  display.setTextSize(1);
-  display.setCursor(30, GxEPD_HEIGHT/2+8);
+  display.fillScreen(GxEPD_WHITE);
   display.print("Loading");
-  display.updateWindow(0, 0, GxEPD_WIDTH, GxEPD_HEIGHT, true);
-  display.setTextSize(1);
-  //init the one and only programmable button.
-  pinMode(PIN_KEY, INPUT);
+  display.update();
+
   Buttons.addButton(PIN_KEY);
   Buttons.attachInterrupts();
   Buttons.onClick(PIN_KEY,onPwrOff,POWER_OFF_CLICKS);
