@@ -1026,7 +1026,7 @@ void CSWButtons::addButton(int pin) {
     btnPins.push_back(pin);
   }
 
-void CSWButtons::onClick(int pin, VoidFunctionWithOneParameter onclick_function, int click_count=1) {
+void CSWButtons::onClick(int pin, VoidFunctionWithOneParameter onclick_function, int click_count) {
   btns.onclick(pin, onclick_function, click_count);
 }
 

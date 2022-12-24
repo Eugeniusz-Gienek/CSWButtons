@@ -37,7 +37,7 @@ class CSWButtons{
     bool checkEventsBlocked(void);
     void checkEventsBlocked(bool v);
     void onLongpress(int pin, VoidFunctionWithOneParameter onclick_function);
-    void onClick(int pin, VoidFunctionWithOneParameter onclick_function, int click_count);
+    void onClick(int pin, VoidFunctionWithOneParameter onclick_function, int click_count=-1);
     const static int button_recheck_interval_ms=1000;
     const static int button_click_flow_limit=5;
     const static int button_min_recheck_interval_ms=100;
