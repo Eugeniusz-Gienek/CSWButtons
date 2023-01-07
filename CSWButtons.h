@@ -35,7 +35,7 @@ class CSWButtons{
     void tickTimer(void);
     void resetTimer(void);
     bool checkEventsBlocked(void);
-    void checkEventsBlocked(bool v);
+    void setEventsBlocked(bool v);
     void onLongpress(int pin, VoidFunctionWithOneParameter onclick_function);
     void onClick(int pin, VoidFunctionWithOneParameter onclick_function, int click_count=-1);
     const static int button_recheck_interval_ms=1000;

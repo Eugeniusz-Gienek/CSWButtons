@@ -1037,7 +1037,7 @@ void CSWButtons::onLongpress(int pin, VoidFunctionWithOneParameter onclick_funct
 bool CSWButtons::checkEventsBlocked() {
   return _firstRun || _eventsBlocked;
 }
-void CSWButtons::checkEventsBlocked(bool v) {
+void CSWButtons::setEventsBlocked(bool v) {
   _eventsBlocked = v;
 }
 
