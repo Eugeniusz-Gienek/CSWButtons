@@ -27,6 +27,8 @@ SimpleTimer stimer;
 
 std::vector<uint8_t> btnPins;
 
+int CSWButtons::button_click_flow_limit=3;
+
 template<typename ValueType>
 std::string stringulate(ValueType v)
 {
@@ -1158,6 +1160,10 @@ bool CSWButtons::checkEventsBlocked() {
 }
 void CSWButtons::setEventsBlocked(bool v) {
   _eventsBlocked = v;
+}
+
+void CSWButtons::setButtonClickFlowFimit(int l) {
+  CSWButtons::button_click_flow_limit=l;
 }
 
 void CSWButtons::attachInterrupts() {

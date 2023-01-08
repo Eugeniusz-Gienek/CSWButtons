@@ -39,8 +39,9 @@ class CSWButtons{
     void onLongpress(int pin, VoidFunctionWithOneParameter onclick_function);
     void onClick(int pin, VoidFunctionWithOneParameter onclick_function, int click_count=-1);
     void setEventsBlocked(bool v);
+    void setButtonClickFlowFimit(int l);
     const static int button_recheck_interval_ms=1000;
-    const static int button_click_flow_limit=5;
+    static int button_click_flow_limit;
     const static int button_min_recheck_interval_ms=100;
     const static int button_recheck_interval_longpress_ms=400;
   private:
@@ -52,4 +53,5 @@ class CSWButtons{
     qButton _button1;
 };
 }
+
 #endif
