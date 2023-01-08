@@ -1,6 +1,6 @@
 {
   "name": "CSWButtons",
-  "version": "0.0.1",
+  "version": "0.1.1",
   "keywords": "CSW,SmartWatch,Button",
   "description": "The library for the diy smartwatch projects, which operates with their buttons.",
   "repository":
@@ -17,5 +17,5 @@
     }
   ],
   "frameworks": "arduino",
-  "platforms": "*"
+  "platforms": "esp32"
 }
