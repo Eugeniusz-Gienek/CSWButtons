@@ -80,6 +80,49 @@ class SWbtns
   void setEventsBlocked(bool v) {
     _eventsBlocked=v;
   }
+  void cleanupBtns(void) {
+    for(_btn_struct btn : stack) {
+      int pressedTime=millis();
+      int unPressedTime=millis();
+      if (
+        (!
+          (
+            (btn._button_unpress_time <= 0)
+            &&
+            (btn._button_unpress_time <= 0)
+          )
+        )
+        &&
+        (
+          !(stimer.getNumTimers() > 0)
+        )
+        &&
+        (
+          (
+            (
+            (unPressedTime-btn._button_unpress_time>CSWButtons::button_recheck_interval_ms)
+            ||
+            (unPressedTime < btn._button_unpress_time)
+            )
+          )
+          &&
+          (
+            (
+            (pressedTime-btn._button_press_time>CSWButtons::button_recheck_interval_ms)
+            ||
+            (pressedTime < btn._button_press_time)
+            )
+          )
+        )
+      )
+      {
+        #if defined(DEBUG) && DEBUG>=10
+        Serial.println("CSWBUTTONS: Cleaning the potentially stuck buttons.");
+        #endif
+        resetBtn(btn.pin);
+      }
+    }
+  }
   int CLICK_index(std::string ev_name)
   {
     for(int i=0;i<clickEvents.size();++i)
@@ -102,7 +145,7 @@ class SWbtns
     ev_name = _ev_spin + ev_clk +_ev_spin2 + ev_spin;
     int indx = this->CLICK_index(ev_name);
     #if defined(DEBUG) && DEBUG>=10
-    Serial.print("NAME of CLICK function: ");
+    Serial.print("CSWBUTTONS: NAME of CLICK function: ");
     Serial.print(ev_name.c_str());
     Serial.print("; INDEX of CLICK function: ");
     Serial.println(indx);
@@ -130,7 +173,7 @@ class SWbtns
     ev_name = _ev_spin + ev_clk +_ev_spin2 + ev_spin;
     int indx = this->CLICK_index(ev_name);
     #if defined(DEBUG) && DEBUG>=10
-    Serial.print("NAME of longpress function: ");
+    Serial.print("CSWBUTTONS: NAME of longpress function: ");
     Serial.print(ev_name.c_str());
     Serial.print("; INDEX of longpress function: ");
     Serial.println(indx);
@@ -266,10 +309,17 @@ class SWbtns
     btn_name = _btn_spin + btn_spin;
     int btn_index=BTN_index(btn_name);
     if(btn_index>=0) {
+      #if defined(DEBUG) && DEBUG>=10
+      Serial.print("CSWBUTTONS: Updating timer id for button with index: ");
+      Serial.println(btn_index);
+      #endif
       stack[btn_index]._timerId=_timerId;
     }
     else {
       //add new
+      #if defined(DEBUG) && DEBUG>=10
+      Serial.println("CSWBUTTONS: Addin new button and timer id.");
+      #endif
       this->Add_btn(pin);
       this->Update_timer_id(pin,_timerId);
     }
@@ -286,15 +336,24 @@ class SWbtns
     int btn_index=BTN_index(btn_name);
     if(btn_index>=0) {
       try {
+        #if defined(DEBUG) && DEBUG>=10
+        Serial.print("CSWBUTTONS: REMOVING  timer for the btn_index:");
+        Serial.println(btn_index);
+        #endif
         if(stack[btn_index]._timerId>=0) stimer.deleteTimer(stack[btn_index]._timerId);
+        #if defined(DEBUG) && DEBUG>=10
+        Serial.print("CSWBUTTONS: Timers amount LEFT: ");
+        Serial.println(stimer.getNumTimers());
+        Serial.println("CSWBUTTONS: **************************************");
+        #endif
       }
       catch(...) {
         //whatever
         #if defined(DEBUG) && DEBUG>=1
-        Serial.println("Could not remove timer. Whatever.");
+        Serial.println("CSWBUTTONS: Could not remove timer. Whatever.");
         #endif
       }
-      stack[btn_index]._timerId=-1;
+      //stack[btn_index]._timerId=-1;
     }
     else {
       //add new
@@ -352,7 +411,7 @@ class SWbtns
     int btn_index=BTN_index(btn_name);
     if(btn_index>=0) {
       #if defined(DEBUG) && DEBUG>=10
-      Serial.println("INCREASING RECURSION!");
+      Serial.println("CSWBUTTONS: INCREASING RECURSION!");
       #endif
       stack[btn_index].recursion_level++;
     }
@@ -374,7 +433,7 @@ class SWbtns
     int btn_index=BTN_index(btn_name);
     if(btn_index>=0) {
     #if defined(DEBUG) && DEBUG>=10
-      Serial.println("RESETTING RECURSION!");
+      Serial.println("CSWBUTTONS: RESETTING RECURSION!");
     #endif
       stack[btn_index].recursion_level=0;
     }
@@ -432,7 +491,17 @@ class SWbtns
     btn_name = _btn_spin + btn_spin;
     int btn_index=BTN_index(btn_name);
     if(btn_index>=0) {
+      #if defined(DEBUG) && DEBUG>=10
+      Serial.print("CSWBUTTONS: Increasing UNCLICKS count for the btn_index:");
+      Serial.println(btn_index);
+      Serial.print("CSWBUTTONS: It was:");
+      Serial.println(stack[btn_index].unclick_count);
+      #endif
       stack[btn_index].unclick_count++;
+      #if defined(DEBUG) && DEBUG>=10
+      Serial.print("CSWBUTTONS: It becomes:");
+      Serial.println(stack[btn_index].unclick_count);
+      #endif
     }
     else {
       //add new
@@ -529,6 +598,10 @@ class SWbtns
     btn_name = _btn_spin + btn_spin;
     int btn_index=BTN_index(btn_name);
     if(btn_index>=0) {
+      #if defined(DEBUG) && DEBUG>=10
+      Serial.print("CSWBUTTONS: Setting UNPRESS timer for the btn_index:");
+      Serial.println(btn_index);
+      #endif
       stack[btn_index]._timerUnpress=unpressTimer;
     }
     else {
@@ -540,7 +613,7 @@ class SWbtns
 
   void _displayInfo(int pin) {
     #if defined(DEBUG) && DEBUG>=1
-    Serial.println("**************************************");
+    Serial.println("CSWBUTTONS: **************************************");
     Serial.print("Info for the PIN ");
     Serial.println(pin);
     std::string btn_name;
@@ -567,10 +640,12 @@ class SWbtns
       Serial.println(stack[btn_index]._timerId);
       Serial.print("indx_num");
       Serial.println(stack[btn_index].indx_num);
-      Serial.println("**************************************");
+      Serial.print("Timers amount: ");
+      Serial.println(stimer.getNumTimers());
+      Serial.println("CSWBUTTONS: **************************************");
     }
     else {
-      Serial.println("info NOT FOUND!");
+      Serial.println("CSWBUTTONS: info NOT FOUND!");
     }
     #endif
   }
@@ -604,7 +679,7 @@ class SWbtns
     }
   }
 
-  void resetBtn(int pin) {
+  void resetBtn(int pin, bool partly=false, int num_to_clean=0) {
     std::string btn_name;
     int click_count=-1;
     int unclick_count=-1;
@@ -619,10 +694,18 @@ class SWbtns
     int btn_index=BTN_index(btn_name);
     if(btn_index>=0)
     {
-      stack[btn_index]._button_press_time=0;
-      stack[btn_index]._button_unpress_time=0;
-      stack[btn_index].click_count=-1;
-      stack[btn_index].unclick_count=-1;
+      if(!partly) {
+        stack[btn_index]._button_press_time=0;
+        stack[btn_index]._button_unpress_time=0;
+        stack[btn_index].click_count=-1;
+        stack[btn_index].unclick_count=-1;
+      }
+      else {
+        stack[btn_index].click_count -= num_to_clean;
+        stack[btn_index].click_count = max(-1,stack[btn_index].click_count);
+        stack[btn_index].unclick_count -= num_to_clean;
+        stack[btn_index].unclick_count = max(-1,stack[btn_index].unclick_count);
+      }
     }
     else
     {
@@ -664,44 +747,54 @@ class SWbtns
 
 SWbtns btns;
 
-void _callbackMulticlick(int pin, int _click_count,bool longPress=false) {
+bool _callbackMulticlick(int pin, int _click_count,bool longPress=false,int _button_press_time=-100,int _button_unpress_time=-100) {
   int click_count=_click_count+1;
   if(click_count > CSWButtons::button_click_flow_limit) click_count=CSWButtons::button_click_flow_limit;
   _btn_struct btn;
   btn = btns[pin];
+  if(_button_press_time == -100) _button_press_time = btn._button_press_time;
+  if(_button_unpress_time == -100) _button_unpress_time = btn._button_unpress_time;
   if( longPress || (
-    (click_count == 1) && ((btn._button_unpress_time - btn._button_press_time) > CSWButtons::button_recheck_interval_longpress_ms))
+    /*(click_count == 1) && */((_button_unpress_time - _button_press_time) > CSWButtons::button_recheck_interval_longpress_ms))
     ) {
     #if defined(DEBUG) && DEBUG>=1
-    Serial.println("MULTICLICK. LONGPRESS.");
+    Serial.println("CSWBUTTONS: MULTICLICK. LONGPRESS.");
     #endif
-    return btns.execOnlongpressFunction(pin);
+    btns.execOnlongpressFunction(pin);
+    return true;
   } else {
     #if defined(DEBUG) && DEBUG>=1
-    Serial.print("MULTICLICK. Click amount: ");
+    Serial.print("CSWBUTTONS: MULTICLICK. Click amount: ");
     Serial.println(click_count);
     #endif
-    return btns.execOnclickFunction(pin, click_count);
+    btns.execOnclickFunction(pin, click_count);
+    return false;
   }
   #if defined(DEBUG) && DEBUG>=10
-  Serial.print("Timers amount: ");
+  Serial.print("CSWBUTTONS: Timers amount: ");
   Serial.println(stimer.getNumTimers());
   #endif
+  return false;
 }
 
 int _sttmout(long d, timer_callback f) {
   #if defined(DEBUG) && DEBUG>=10
-  Serial.print("Timers: ");
+  Serial.print("CSWBUTTONS: Timers: ");
   Serial.println(stimer.getNumTimers());
   #endif
   if(stimer.getNumTimers() > CSWButtons::button_click_flow_limit) {
     #if defined(DEBUG) && DEBUG>=10
-    Serial.println("Timer overflow! NOT adding a new timer!");
+    Serial.println("CSWBUTTONS: Timer overflow! NOT adding a new timer!");
     #endif
     return -1;
   }
-  else
+  else {
+    #if defined(DEBUG) && DEBUG>=10
+    Serial.print("CSWBUTTONS: Timer set! d: ");
+    Serial.println(d);
+    #endif
     return stimer.setTimeout(d, f);
+  }
 }
 
 void handleTimer(int pinNum) {
@@ -711,14 +804,14 @@ void handleTimer(int pinNum) {
   int clickCount=-1;
   int unclickCount=-1;
   #if defined(DEBUG) && DEBUG>=10
-  Serial.println("ONPRESS TIMER FOR PIN: ");
+  Serial.println("CSWBUTTONS: ONPRESS TIMER FOR PIN: ");
   Serial.println(pin);
   #endif
   btn = btns[pin];
   int clc = btn.click_count;
   if(clc > CSWButtons::button_click_flow_limit) {
     #if defined(DEBUG) && DEBUG>=1
-    Serial.println("TOO MUCH CLICKS. Ignoring this one.");
+    Serial.println("CSWBUTTONS: TOO MUCH CLICKS. Ignoring this one.");
     #endif
     return;
   }
@@ -729,11 +822,11 @@ void handleTimer(int pinNum) {
   int unPressedTime=btn._button_unpress_time;
   int btn_recursion=btn.recursion_level;
   #if defined(DEBUG) && DEBUG>=10
-  Serial.print("Recursion level: ");Serial.println(btn_recursion);
+  Serial.print("CSWBUTTONS: Recursion level: ");Serial.println(btn_recursion);
   #endif
   if(btn_recursion > CSWButtons::button_click_flow_limit) {
     #if defined(DEBUG) && DEBUG>=10
-    Serial.print("Recursion overflow. Resetting.");
+    Serial.println("CSWBUTTONS: Recursion overflow. Resetting.");
     #endif
     btns.resetBtn(pin);
     btns.Reset_timer_id(pin);
@@ -747,7 +840,7 @@ void handleTimer(int pinNum) {
     //if the unclicks didn't change - then no sense to run it XXX more times, right?
     if((btn.unclick_count == btn.prevunclick_count) && (btn.unclick_count > 0 )) {
       #if defined(DEBUG) && DEBUG>=10
-      Serial.println("Updating click count - outta recursion.");
+      Serial.println("CSWBUTTONS: Updating click count - outta recursion.");
       #endif
       btns.Update_click_count(pin,btn.unclick_count);
       btn = btns[pin];
@@ -761,13 +854,25 @@ void handleTimer(int pinNum) {
       }
       //multickick finished
       #if defined(DEBUG) && DEBUG>=10
-      Serial.println("Multickick finished");
+      Serial.println("CSWBUTTONS: Multickick finished");
       #endif
-      _callbackMulticlick(pin,btn.click_count);
-      //now clear all up
+      // moved call of the _callbackMulticlick from here to the end of the function because it can last long and this can break next click!
+      int bb_pt = btn._button_press_time;
+      int bb_upt = btn._button_unpress_time;
+      int bb_cc = btn.click_count;
+      //clear all up
+      #if defined(DEBUG) && DEBUG>=10
+      Serial.println("CSWBUTTONS: Now clear all up!");
+      #endif
       btns.resetBtn(pin);
       btns.Reset_btn_recursion(pin);
-      btns.Reset_timer_id(pin);
+      #if defined(DEBUG) && DEBUG>=10
+      btns._displayInfo(pin);
+      #endif
+      //btns.Reset_timer_id(pin);
+
+      //It can take a long time!
+      bool isLongpress = _callbackMulticlick(pin,bb_cc,false,bb_pt,bb_upt);
       return;
     }
     else if(
@@ -776,14 +881,14 @@ void handleTimer(int pinNum) {
         (btn.unclick_count <= CSWButtons::button_click_flow_limit)
       ) {
         #if defined(DEBUG) && DEBUG>=10
-        Serial.print("Clicks: ");Serial.println(btn.click_count);
-        Serial.print("Unclicks: ");Serial.println(btn.unclick_count);
+        Serial.print("CSWBUTTONS: Clicks: ");Serial.println(btn.click_count);
+        Serial.print("CSWBUTTONS: Unclicks: ");Serial.println(btn.unclick_count);
         #endif
         if(btn_recursion <= CSWButtons::button_click_flow_limit) {
           btns.Update_btn_recursion(pin);
           //set new timeout - for the flow
           #if defined(DEBUG) && DEBUG>=10
-          Serial.println("set new timeout - for the flow");
+          Serial.println("CSWBUTTONS: set new timeout - for the flow");
           #endif
           btns.Update_prevunclick_count(pin,btn.unclick_count);
           btns.Update_timer_id(pin,_sttmout(VERIFICATION_BTN_TIMEOUT, btns._tmoFunctions[btn.indx_num]));
@@ -792,11 +897,11 @@ void handleTimer(int pinNum) {
           btns.Reset_btn_recursion(pin);
           //smth went wrong. We have to clear up everything.
           #if defined(DEBUG) && DEBUG>=1
-          Serial.println("Smth went wrong - recursion limit reached... let's clear everything up. Issue with unpress perhaps or the order?");
+          Serial.println("CSWBUTTONS: Smth went wrong - recursion limit reached... let's clear everything up. Issue with unpress perhaps or the order?");
           #endif
+          _callbackMulticlick(pin,btn.click_count,false,btn._button_press_time,btn._button_unpress_time);
           btns.resetBtn(pin);
           btns.Reset_timer_id(pin);
-          _callbackMulticlick(pin,btn.click_count);
           clickCount=btn.click_count;
           unclickCount=btn.unclick_count;
           return;
@@ -804,7 +909,7 @@ void handleTimer(int pinNum) {
     } else {
       //smth went wrong. We have to clear up everything.
       #if defined(DEBUG) && DEBUG>=1
-      Serial.println("Smth went wrong... let's clear everything up. It's a single click perhaps?");
+      Serial.println("CSWBUTTONS: Smth went wrong... let's clear everything up. It's a single click perhaps?");
       #endif
       btns.resetBtn(pin);
       btns.Reset_btn_recursion(pin);
@@ -819,40 +924,48 @@ void handleTimer(int pinNum) {
     (unclickCount==0)
     ) {
       #if defined(DEBUG) && DEBUG>=1
-      Serial.println("Ordinary click detected.");
+      Serial.println("CSWBUTTONS: Ordinary click detected.");
       #endif
       //ordinary click
-      _callbackMulticlick(pin,0);
+      int bpt = btn._button_press_time;
+      int bupt = btn._button_unpress_time;
+      
+      #if defined(DEBUG) && DEBUG>=10
+      Serial.println("CSWBUTTONS: Clear after ordinary click!");
+      #endif
+      //btns.resetBtn(pin, true, 1);
       btns.resetBtn(pin);
       btns.Reset_btn_recursion(pin);
-      btns.Reset_timer_id(pin);
+      //btns.Reset_timer_id(pin);
+      //moved here because can take long time to execute
+      _callbackMulticlick(pin,0,false,bpt,bupt);
     } else if ((clickCount==0)/* && (btn_recursion < 1)*/) {
       btns.Update_btn_recursion(pin);
       btns.Dec_click_count(pin);
       //set new timeout - for the flow
       #if defined(DEBUG) && DEBUG>=10
-      Serial.println("We've maybe got LONGPRESS?");
-      Serial.print("Clicks: ");
+      Serial.println("CSWBUTTONS: We've maybe got LONGPRESS?");
+      Serial.print("CSWBUTTONS: Clicks: ");
       Serial.println(clickCount);
-      Serial.print("Unclicks: ");
+      Serial.print("CSWBUTTONS: Unclicks: ");
       Serial.println(unclickCount);
       #endif
       btns.Update_timer_id(pin,_sttmout(VERIFICATION_BTN_TIMEOUT, btns._tmoFunctions[btn.indx_num]));
       return;
     } else {
       #if defined(DEBUG) && DEBUG>=10
-      Serial.print("WHO'S THERE???");
+      Serial.print("CSWBUTTONS: WHO'S THERE???");
       #endif
     }
 }
 void _callbackUnpress(int pin) {
   //on button RELEASE - UNPRESS - is handled here!
   //_btn_struct btn;
-  //Serial.println("ON-UNPRESS TIMER FOR PIN: ");
+  //Serial.println("CSWBUTTONS: ON-UNPRESS TIMER FOR PIN: ");
   //Serial.println(pin);
   //btn = btns[pin];
   #if defined(DEBUG) && DEBUG>=10
-  Serial.println("IN UNPRESS CALLBACK!");
+  Serial.println("CSWBUTTONS: IN UNPRESS CALLBACK!");
   btns._displayInfo(pin);
   #endif
 }
@@ -861,9 +974,9 @@ void handleInterrupt(int pinNum) {
   int pin=btns.getPinByNum(pinNum);//to be refactored
   //btns._displayInfo(pin);
   if(btns.checkEventsBlocked()) {
-    #if defined(DEBUG) && DEBUG>=10
-    Serial.println("Blocking onclick!");
-    #endif
+    //#if defined(DEBUG) && DEBUG>=10
+    Serial.println("CSWBUTTONS: BUTTONS: Blocking onclick!");
+    //#endif
     return;
   }
   _btn_struct btn;
@@ -880,6 +993,9 @@ void handleInterrupt(int pinNum) {
   }
   btn = btns[pin];
   if(eventType == 1) {
+    #if defined(DEBUG) && DEBUG>=10
+    Serial.println("CSWBUTTONS: BUTTONS: Event is UNPRESS.");
+    #endif
     //on UNPRESS do this:
     if(
       (unPressedTime-btn._button_unpress_time>CSWButtons::button_min_recheck_interval_ms)
@@ -887,29 +1003,29 @@ void handleInterrupt(int pinNum) {
       (unPressedTime < btn._button_unpress_time)
       ) {
        #if defined(DEBUG) && DEBUG>=10
-       Serial.println("UNPRESS DETECTED!!!");
+       Serial.println("CSWBUTTONS: UNPRESS DETECTED!!!");
        #endif
        #if defined(DEBUG) && DEBUG>=10
-       Serial.println("Increasing unclick count...");
+       Serial.println("CSWBUTTONS: Increasing unclick count...");
        #endif
        btns.Inc_unclick_count(pin);
        #if defined(DEBUG) && DEBUG>=10
-       Serial.println("Updating btn unpress time...");
+       Serial.println("CSWBUTTONS: Updating btn unpress time...");
        #endif
        btns.Update_btn_unpress_time(pin,unPressedTime);
        #if defined(DEBUG) && DEBUG>=10
-       Serial.println("Calling unpress callback...");
+       Serial.println("CSWBUTTONS: Calling unpress callback...");
        #endif
         _callbackUnpress(pin);
         #if defined(DEBUG) && DEBUG>=10
-        Serial.println("Outta here.");
+        Serial.println("CSWBUTTONS: Outta here.");
         #endif
       }
   }
   else {
     //on PRESS do this:
     #if defined(DEBUG) && DEBUG>=10
-    Serial.println("PRESS DETECTED!!!");
+    Serial.println("CSWBUTTONS: PRESS DETECTED!!!");
     #endif
     if(
       (pressedTime-btn._button_press_time>CSWButtons::button_min_recheck_interval_ms)
@@ -917,7 +1033,7 @@ void handleInterrupt(int pinNum) {
       (pressedTime < btn._button_press_time)
       ) {
         #if defined(DEBUG) && DEBUG>=10
-        Serial.print("PRESS PASSED FURTHER!!! ");
+        Serial.print("CSWBUTTONS: PRESS PASSED FURTHER!!! ");
         #endif
         #if defined(DEBUG) && DEBUG>=10
         Serial.println(pressedTime-btn._button_press_time);
@@ -926,19 +1042,22 @@ void handleInterrupt(int pinNum) {
         //new functionality
         if(btn.indx_num >=0) {
           #if defined(DEBUG) && DEBUG>=10
-          Serial.println("Setting up timeout.");
+          Serial.println("CSWBUTTONS: Setting up timeout.");
           #endif
           if(btn.click_count+1 <= CSWButtons::button_click_flow_limit) {
+            #if defined(DEBUG) && DEBUG>=10
+            Serial.println("CSWBUTTONS: Actually updating timer.");
+            #endif
             btns.Update_timer_id(pin,_sttmout(VERIFICATION_BTN_TIMEOUT, btns._tmoFunctions[btn.indx_num]));
           }
           #if defined(DEBUG) && DEBUG>=10
           else 
-            Serial.println("Multiclick limite reached. NOT setting up timeout.");
+            Serial.println("CSWBUTTONS: Multiclick limite reached. NOT setting up timeout.");
           #endif
         }
         #if defined(DEBUG) && DEBUG>=10
         else
-          Serial.println("btn.indx_num is not set...");
+          Serial.println("CSWBUTTONS: btn.indx_num is not set...");
         #endif
     }
   }
@@ -1044,37 +1163,37 @@ void CSWButtons::setEventsBlocked(bool v) {
 void CSWButtons::attachInterrupts() {
   _firstRun=true;
   #if defined(DEBUG) && DEBUG>=10
-  Serial.println("First run set.");
+  Serial.println("CSWBUTTONS: First run set.");
   #endif
   btns.setEventsBlocked(true);
   #if defined(DEBUG) && DEBUG>=10
-  Serial.println("Events blocked set. Going to pinmodes...");
-  Serial.print("Buttons numer is: ");
+  Serial.println("CSWBUTTONS: Events blocked set. Going to pinmodes...");
+  Serial.print("CSWBUTTONS: Buttons numer is: ");
   Serial.println(btnPins.size());
   #endif
   for(int i=0;i<btnPins.size();i++) {
     pinMode(btnPins[i], INPUT_PULLUP);
     #if defined(DEBUG) && DEBUG>=10
-    Serial.print("Pinmode for the pin ");
+    Serial.print("CSWBUTTONS: Pinmode for the pin ");
     Serial.print(btnPins[i]);
     Serial.print(" with nr ");
-    Serial.print(i);
-    Serial.println(" is set as PULLUP. Attaching interrupt...");
+    Serial.println(i);
+    Serial.println("CSWBUTTONS:  is set as PULLUP. Attaching interrupt...");
     #endif
     attachInterrupt (btnPins[i], intrp_functions[i], CHANGE);
     #if defined(DEBUG) && DEBUG>=10
-    Serial.println("Interrupt attached. Adding button...");
+    Serial.println("CSWBUTTONS: Interrupt attached. Adding button...");
     #endif
     btns.Add_btn(btnPins[i],i);
   }
   #if defined(DEBUG) && DEBUG>=10
-  Serial.println("Interrupts attached! Now calling the tmo functions...");
+  Serial.println("CSWBUTTONS: Interrupts attached! Now calling the tmo functions...");
   delay(500);
   #endif
   for(int i=0;i<btnPins.size();i++)
     btns._tmoFunctions.push_back(tmo_functions[i]);
   #if defined(DEBUG) && DEBUG>=10
-  Serial.println("TMO functions called. Exiting.");
+  Serial.println("CSWBUTTONS: TMO functions called. Exiting.");
   delay(500);
   #endif
 }
@@ -1084,7 +1203,8 @@ void CSWButtons::tickTimer() {
     _firstRun=false;
   }
   stimer.run();
-  delay(VRF_TIMEOUT);
+  btns.cleanupBtns();
+  //delay(VRF_TIMEOUT);
   //Serial.println(ESP.getFreeHeap());
   //Serial.println(uxTaskGetStackHighWaterMark(NULL));
   //if((millis() % SLF_RESET_TIMEOUT) <=VRF_TIMEOUT) this->resetTimer();
