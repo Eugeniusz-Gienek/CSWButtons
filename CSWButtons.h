@@ -57,7 +57,7 @@ class CSWButtons{
     const static int button_recheck_interval_ms=1000;
     static int button_click_flow_limit;
     const static int button_min_recheck_interval_ms=100;
-    const static int button_recheck_interval_longpress_ms=400;
+    const static int button_recheck_interval_longpress_ms=500;
   private:
     int _button_pin=-1;
     bool _firstRun=true;

@@ -992,6 +992,7 @@ bool CSWButtons::checkEventsBlocked() {
 }
 void CSWButtons::setEventsBlocked(bool v) {
   _eventsBlocked = v;
+  btns.setEventsBlocked(v);
 }
 
 void CSWButtons::setButtonClickFlowFimit(int l) {
@@ -1053,7 +1054,7 @@ void SWbtns::addEventToClickStack(int pin,int click_type, int ts) {
   Serial.println(pin);
   #endif
   int indx_alt = this->getClickStackIndex(pin, true);
-  //if(this->checkEventsBlocked()) return;
+  if(this->checkEventsBlocked()) return;
   bool is_alt=buttonsClickStackLocked;
   //if events are currently being processed for the current stack type (main or alt)
   bool ckst = this->checkClickStackDone(pin, is_alt); //optimization - less calls
