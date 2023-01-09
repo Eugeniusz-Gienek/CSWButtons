@@ -8,10 +8,15 @@
   *
   ******************************************************************************
   */
+#ifndef USE_STACK
+#define USE_STACK 1
+#endif
+
 #include "CSWButtons.h"
 using namespace swbtns;
 #include <SimpleTimer.h>
 #include <vector>
+#include <deque>
 #include <string>
 #include <sstream>
 
@@ -61,9 +66,26 @@ typedef struct Record2
 
 class SWbtns
 {
+  private:
   std::vector<_click_event> clickEvents;
   std::vector<_btn_struct> stack;
   bool _eventsBlocked=false;
+  int button_click_flow_limit=5;
+
+  #if defined(USE_STACK) && (USE_STACK==1)
+  t_buttonsStack buttonsClickStack;
+  // alt click stack is used for the situations when during the processing of the stack
+  // there are click events happening and they are processed by the CPU and the code is
+  // executed. Seems to be that ESP doesn't support it YET but when it will be the code 
+  // will just work. Hopefully. For the same reasons the blockers below are introduced.
+  // BTW we block the selected stack for ALL buttons at once at this moment - thus
+  // the blocker vars are just bool's and not having IDs inside them.
+  t_buttonsStack buttonsClickStackAlt;
+  bool buttonsClickStackLocked=false;
+  bool buttonsClickStackAltLocked=false;
+  int getClickStackIndex(int pin, bool is_alt=false);
+  #endif
+
   public:
   //VoidFunctionWithNoParameters _tmoFunctions[];
   std::vector<void (*)()> _tmoFunctions;
@@ -129,6 +151,12 @@ class SWbtns
   {
     for(int i=0;i<clickEvents.size();++i)
     {
+      #if defined(DEBUG) && DEBUG>=10
+      Serial.print("CSWBUTTONS: Verifying ONCLICK event '");
+      Serial.print(ev_name.c_str());
+      Serial.print("'. Check for: ");
+      Serial.println(clickEvents[i].name.c_str());
+      #endif
       if(clickEvents[i].name==ev_name)
         return i;
     }
@@ -157,8 +185,20 @@ class SWbtns
   }
 
   void execOnclickFunction(int pin, int click_count=1) {
+    #if defined(DEBUG) && DEBUG>=10
+    Serial.println("CSWBUTTONS: Executing onclick function....");
+    #endif
     VoidFunctionWithOneParameter f = this->getOnclickFunction(pin, click_count);
-    if(f) f(pin);
+    if(f) {
+      #if defined(DEBUG) && DEBUG>=10
+      Serial.println("CSWBUTTONS: Function found. Execution!");
+      #endif
+      f(pin);
+    } else {
+      #if defined(DEBUG) && DEBUG>=10
+      Serial.println("CSWBUTTONS: No onclick function attached!");
+      #endif
+    }
   }
   
   VoidFunctionWithOneParameter getOnlongpressFunction(int pin) {
@@ -186,7 +226,19 @@ class SWbtns
 
   void execOnlongpressFunction(int pin) {
     VoidFunctionWithOneParameter f = this->getOnlongpressFunction(pin);
-    if(f) f(pin);
+    #if defined(DEBUG) && DEBUG>=10
+    Serial.println("CSWBUTTONS: Execution of the longpress function...");
+    #endif
+    if(f) {
+      #if defined(DEBUG) && DEBUG>=10
+      Serial.println("CSWBUTTONS: Function found. Executing!");
+      #endif
+      f(pin);
+    } else {
+      #if defined(DEBUG) && DEBUG>=10
+      Serial.println("CSWBUTTONS: No function for longpress!");
+      #endif
+    }
   }
   
   int getPinByNum(int pinNum) {
@@ -195,6 +247,9 @@ class SWbtns
 
   void onclick(int pin, VoidFunctionWithOneParameter onclick_function, int click_count=1)
   {
+    #if defined(DEBUG) && DEBUG>=10
+    Serial.println("CSWBUTTONS: Adding onclick function!");
+    #endif
     std::string ev_name;
     std::string ev_spin;
     std::string ev_clk;
@@ -224,6 +279,9 @@ class SWbtns
 
   void onlongpress(int pin, VoidFunctionWithOneParameter onclick_function)
   {
+    #if defined(DEBUG) && DEBUG>=10
+    Serial.println("CSWBUTTONS: Adding onlongpress function!");
+    #endif
     int click_count=1;
     std::string ev_name;
     std::string ev_spin;
@@ -715,6 +773,19 @@ class SWbtns
       this->Add_btn(pin);
     }
   }
+
+  #if defined(USE_STACK) && (USE_STACK==1)
+  const static int CLICK=0;
+  const static int UNCLICK=1;
+  void addEventToClickStack(int pin,int click_type=CLICK, int ts=-1);//click_type: 0-click, 1-unclick; ts = timestamp, optional
+  bool checkClickStackDone(int pin, bool is_alt=false);
+  void clearClickStack(int pin, bool is_alt=false);
+  void clearAllClickStacks();
+  void swapClickStacks(int pin);
+  void setButtonStackFimit(int l);
+  int getButtonStackFimit(void);
+  void processStack(void);
+  #endif
   
   _btn_struct operator [] (int pin)
   {
@@ -750,31 +821,45 @@ class SWbtns
 SWbtns btns;
 
 bool _callbackMulticlick(int pin, int _click_count,bool longPress=false,int _button_press_time=-100,int _button_unpress_time=-100) {
+  #if !(defined(USE_STACK) && (USE_STACK==1))
   int click_count=_click_count+1;
   if(click_count > CSWButtons::button_click_flow_limit) click_count=CSWButtons::button_click_flow_limit;
   _btn_struct btn;
   btn = btns[pin];
+  #else
+  int click_count=_click_count;
+  #endif
+  #if !(defined(USE_STACK) && (USE_STACK==1))
   if(_button_press_time == -100) _button_press_time = btn._button_press_time;
   if(_button_unpress_time == -100) _button_unpress_time = btn._button_unpress_time;
-  if( longPress || (
+  #endif
+  if( longPress
+    #if !(defined(USE_STACK) && (USE_STACK==1))
+    || (
     /*(click_count == 1) && */((_button_unpress_time - _button_press_time) > CSWButtons::button_recheck_interval_longpress_ms))
+    #endif
     ) {
     #if defined(DEBUG) && DEBUG>=1
-    Serial.println("CSWBUTTONS: MULTICLICK. LONGPRESS.");
+    Serial.print("CSWBUTTONS: MULTICLICK. LONGPRESS. PIN: ");
+    Serial.println(pin);
     #endif
     btns.execOnlongpressFunction(pin);
     return true;
   } else {
     #if defined(DEBUG) && DEBUG>=1
     Serial.print("CSWBUTTONS: MULTICLICK. Click amount: ");
-    Serial.println(click_count);
+    Serial.print(click_count);
+    Serial.print("; PIN: ");
+    Serial.println(pin);
     #endif
     btns.execOnclickFunction(pin, click_count);
     return false;
   }
+  #if !(defined(USE_STACK) && (USE_STACK==1))
   #if defined(DEBUG) && DEBUG>=10
   Serial.print("CSWBUTTONS: Timers amount: ");
   Serial.println(stimer.getNumTimers());
+  #endif
   #endif
   return false;
 }
@@ -800,6 +885,7 @@ int _sttmout(long d, timer_callback f) {
 }
 
 void handleTimer(int pinNum) {
+  #if !(defined(USE_STACK) && (USE_STACK==1))
   //ONPRESS event is handled here
   int pin=btns.getPinByNum(pinNum);//to be refactored
   _btn_struct btn;
@@ -959,6 +1045,7 @@ void handleTimer(int pinNum) {
       Serial.print("CSWBUTTONS: WHO'S THERE???");
       #endif
     }
+  #endif
 }
 void _callbackUnpress(int pin) {
   //on button RELEASE - UNPRESS - is handled here!
@@ -981,18 +1068,35 @@ void handleInterrupt(int pinNum) {
     //#endif
     return;
   }
+  #if !(defined(USE_STACK) && (USE_STACK==1))
   _btn_struct btn;
+  #endif
   uint8_t eventType = 0; //0 - pressed, 1 - unpressed
+  #if !(defined(USE_STACK) && (USE_STACK==1))
   unsigned long pressedTime = millis();
   unsigned long unPressedTime = millis();
+  #endif
   uint8_t buttonState = digitalRead(pin);
   if(buttonState == LOW) {
+    #if !(defined(USE_STACK) && (USE_STACK==1))
     pressedTime = millis();
+    #endif
     eventType = 0;
   } else {
+    #if !(defined(USE_STACK) && (USE_STACK==1))
     unPressedTime = millis();
+    #endif
     eventType = 1;
   }
+  #if defined(USE_STACK) && (USE_STACK==1)
+  #if defined(DEBUG) && DEBUG>=10
+  Serial.println("CSWBUTTONS: Calling the addEventToClickStack.");
+  Serial.print("CSWBUTTONS: event type:");
+  Serial.println(eventType);
+  delay(500);
+  #endif
+  btns.addEventToClickStack(pin,eventType);
+  #else
   btn = btns[pin];
   if(eventType == 1) {
     #if defined(DEBUG) && DEBUG>=10
@@ -1063,14 +1167,24 @@ void handleInterrupt(int pinNum) {
         #endif
     }
   }
+  #endif
 }
 unsigned long lastPressedTime = millis();
+#if !(defined(USE_STACK) && (USE_STACK==1))
 #define PIN_HANDLER(pin) \
 void pin_handler_##pin (void) \
 { \
   unsigned long pressedTime = millis();\
   if(pressedTime-lastPressedTime >= 100) {lastPressedTime=pressedTime;handleInterrupt(pin);} \
 }
+#else
+#define PIN_HANDLER(pin) \
+void pin_handler_##pin (void) \
+{ \
+  unsigned long pressedTime = millis();\
+  if(pressedTime-lastPressedTime >= 5) {lastPressedTime=pressedTime;handleInterrupt(pin);} \
+}
+#endif
 #define TMO_HANDLER(pin) \
 void tmo_handler_##pin (void) \
 { \
@@ -1202,14 +1316,21 @@ void CSWButtons::attachInterrupts() {
   Serial.println("CSWBUTTONS: TMO functions called. Exiting.");
   delay(500);
   #endif
+  #if defined(USE_STACK) && (USE_STACK==1)
+  btns.setEventsBlocked(false);
+  #endif
 }
 void CSWButtons::tickTimer() {
+  #if defined(USE_STACK) && (USE_STACK==1)
+  btns.processStack();
+  #else
   if(_firstRun) {
     btns.setEventsBlocked(false);
     _firstRun=false;
   }
   stimer.run();
   btns.cleanupBtns();
+  #endif
   //delay(VRF_TIMEOUT);
   //Serial.println(ESP.getFreeHeap());
   //Serial.println(uxTaskGetStackHighWaterMark(NULL));
@@ -1218,3 +1339,408 @@ void CSWButtons::tickTimer() {
 void CSWButtons::resetTimer() {
   SimpleTimer stimer;
 }
+
+
+#if defined(USE_STACK) && (USE_STACK==1)
+void SWbtns::addEventToClickStack(int pin,int click_type, int ts) {
+  #if defined(DEBUG) && DEBUG>=10
+  Serial.print("CSWBUTTONS: Adding event to click stack for PIN: ");
+  Serial.println(pin);
+  #endif
+  int indx_alt = this->getClickStackIndex(pin, true);
+  //if(this->checkEventsBlocked()) return;
+  bool is_alt=buttonsClickStackLocked;
+  //if events are currently being processed for the current stack type (main or alt)
+  bool ckst = this->checkClickStackDone(pin, is_alt); //optimization - less calls
+  if(!is_alt && buttonsClickStackLocked) return;
+  if(is_alt && buttonsClickStackAltLocked) return;
+  if((!is_alt) && ckst) {
+    // Interesting situation.
+    // We expect that the main buffer will be processed in next "tick" iteration.
+    // thus let's call it maybe or leave for now? I decided to leave.
+    #if defined(DEBUG) && DEBUG>=10
+    Serial.println("CSWBUTTONS: the main buffer will be processed in next 'tick' iteration");
+    #endif
+    return;
+  }
+  //this behaviour is just for alt buffer
+  if(is_alt && ckst) {
+    if(indx_alt != -1) {
+      //well, smth HAS to be in alt. Otherwise just add.
+      //alt buffer overflow. We have to use stack approach or clear it due to timing;
+      if(buttonsClickStackAlt[indx_alt].buttonClickStackEvents.size()>= this->getButtonStackFimit()) {
+        //stack - so just remove the first element; NOT optimal code though
+        //buttonsClickStackAlt[indx_alt].buttonClickStackEvents.erase(buttonsClickStackAlt[indx_alt].buttonClickStackEvents.begin());
+        buttonsClickStackAlt[indx_alt].buttonClickStackEvents.pop_front();
+      } else {
+        //it'll be empty
+        this->clearClickStack(pin, true);
+      }
+    }
+  }
+  // At this point the stack is NOT done (two previous "if's" are responsible for that).
+  // So we can add to the current stack the event
+  int currTime = millis();
+  t_buttonsStack * buttons_stack = &buttonsClickStack;
+  if(is_alt) buttons_stack = &buttonsClickStackAlt;
+  int btn_s_indx = this->getClickStackIndex(pin, is_alt);
+  if(btn_s_indx == -1) {
+    #if defined(DEBUG) && DEBUG>=10
+    Serial.print("CSWBUTTONS: Creating the new events stack for pin");
+    Serial.print(pin);
+    Serial.println(is_alt ? " - alternative one." : ".");
+    #endif
+    //we have to creat it!
+    buttonEventsStack newButtonEventsStack = {};
+    newButtonEventsStack.PIN = pin;
+    newButtonEventsStack.buttonClickStackEvents = {};
+    if(is_alt) {
+      buttonsClickStackAlt.push_back(newButtonEventsStack);
+    } else {
+      buttonsClickStack.push_back(newButtonEventsStack);
+    }
+    btn_s_indx = 0;
+  }
+  t_buttonClickStackEvents stack = (*buttons_stack)[btn_s_indx].buttonClickStackEvents;
+  if((stack.size() == 0) || (stack[stack.size()-1].is_complete)) {
+    #if defined(DEBUG) && DEBUG>=10
+    Serial.println("CSWBUTTONS: Adding first event to stack.");
+    #endif
+    //add new
+    buttonClickStackEvent bcse;
+    if(click_type == CLICK) {
+      bcse.time_pressed = currTime;
+    }else {
+      //First element with UNCLICK only? I think smth is off
+      #if defined(DEBUG) && DEBUG>=10
+      Serial.println("CSWBUTTONS: First element with UNCLICK only? Smth is off.");
+      #endif
+      //if(is_alt) {
+      //  bcse.time_pressed = max(currTime-10,0);
+      //  bcse.time_unpressed = max(currTime,0);
+      //} else {
+      //  return;
+      //}
+      bcse.time_unpressed = max(currTime,0);
+    }
+    (*buttons_stack)[btn_s_indx].buttonClickStackEvents.push_back(bcse);
+  } else {
+    //update last
+    #if defined(DEBUG) && DEBUG>=10
+    Serial.println("CSWBUTTONS: Adding next event to stack.");
+    #endif
+    if(click_type == CLICK) {
+      #if defined(DEBUG) && DEBUG>=10
+      Serial.println("CSWBUTTONS: Click event detected.");
+      #endif
+      if(stack[stack.size()-1].time_pressed == -1) {
+        #if defined(DEBUG) && DEBUG>=10
+        Serial.println("CSWBUTTONS: We are updating the previously added event without click time.");
+        #endif
+        //this means we are updating the previously added event without click time
+        (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].time_pressed = currTime;
+      } else {
+        #if defined(DEBUG) && DEBUG>=10
+        Serial.println("CSWBUTTONS: We've lost the previous unclick because we have time in time_pressed.");
+        #endif
+        //we've lost the previous unclick because we have time in time_pressed.
+        if(stack[stack.size()-1].time_pressed > currTime) {
+          //if the system time is changed flush all buffers.
+          #if defined(DEBUG) && DEBUG>=1
+          Serial.println("CSWBUTTONS: System time seem to either overflow or was changed to PAST.");
+          Serial.println("CSWBUTTONS: Buttons buffers will be reset.");
+          #endif
+          this->clearAllClickStacks();
+          return;
+        }
+        //Not inventing smth
+        #if defined(DEBUG) && DEBUG>=10
+        Serial.println("CSWBUTTONS: Broken click event.");
+        #endif
+        (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].time_pressed = currTime;
+        return;
+        //Unless You're interested in the thing below. Then comment the above 2 lines.
+        #if defined(DEBUG) && DEBUG>=10
+        Serial.println("CSWBUTTONS: Adding a fixing unpress event.");
+        #endif
+        //add an unpress event (fixing one) - 1 MS before current press event or 1 ms after time of the prev click
+        (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].time_unpressed = 
+          max(currTime-1, stack[stack.size()-1].time_pressed+1);
+        //'cause time_pressed is set - that's why we are in here
+        (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].is_complete=true;
+        //and add a new event
+        buttonClickStackEvent bcse;
+        bcse.time_pressed = currTime;
+        (*buttons_stack)[btn_s_indx].buttonClickStackEvents.push_back(bcse);
+      }
+    } else {
+      //UNCLICK
+      #if defined(DEBUG) && DEBUG>=10
+      Serial.println("CSWBUTTONS: Unclick event detected.");
+      #endif
+      if(stack[stack.size()-1].time_unpressed == -1) {
+        #if defined(DEBUG) && DEBUG>=10
+        Serial.println("CSWBUTTONS: Updating the last event with unclick.");
+        #endif
+        (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].time_unpressed = currTime;
+      } else {
+        #if defined(DEBUG) && DEBUG>=10
+        Serial.println("CSWBUTTONS: We lost the previous CLICK because we have time in time_unpressed..");
+        #endif
+        //we lost the previous CLICK because we have time in time_unpressed.
+        if(stack[stack.size()-1].time_unpressed > currTime) {
+          //if the system time is changed flush all buffers.
+          #if defined(DEBUG) && DEBUG>=1
+          Serial.println("CSWBUTTONS: System time seem to either overflow or was changed to PAST.");
+          Serial.println("CSWBUTTONS: Buttons buffers will be reset.");
+          #endif
+          this->clearAllClickStacks();
+          return;
+        }
+        // Let's not invent anything and just go away
+        #if defined(DEBUG) && DEBUG>=10
+        Serial.println("CSWBUTTONS: IGNORING the unconnected unclick event.");
+        #endif
+        return;
+        //Or maybe You're interested in the thing below - then just comment out the "return" above;
+        #if defined(DEBUG) && DEBUG>=10
+        Serial.println("CSWBUTTONS: Adding a press event (fixing one) - 1 MS before that unpress event");
+        #endif
+        //add a press event (fixing one) - 1 MS before that unpress event
+        (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].time_pressed = 
+          max(stack[stack.size()-1].time_unpressed-1,0);
+        //'cause time_pressed is set - that's why we are in here
+        (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].is_complete=true;
+        //and add a new event. BTW it doesn't have CLICK time. Smth seems to be off.
+        #if defined(DEBUG) && DEBUG>=10
+        Serial.println("CSWBUTTONS: Second unpress event in a row without a press event. Something is off.");
+        #endif
+        buttonClickStackEvent bcse;
+        bcse.time_unpressed = currTime;
+        (*buttons_stack)[btn_s_indx].buttonClickStackEvents.push_back(bcse);
+      }
+    }
+  }
+
+}
+bool SWbtns::checkClickStackDone(int pin, bool is_alt) {
+  int btn_s_indx = this->getClickStackIndex(pin, is_alt);
+  t_buttonsStack * buttons_stack = &buttonsClickStack;
+  if(is_alt) buttons_stack = &buttonsClickStackAlt;
+  if(btn_s_indx == -1) return false;
+  t_buttonClickStackEvents stack = (*buttons_stack)[btn_s_indx].buttonClickStackEvents;
+  //check for reaching the stack limit
+  if(stack.size() >= this->getButtonStackFimit()) return true;
+  if(stack.size() == 0) return false;
+  int currTime = millis();
+
+  //mark the LAST complete item, as we don't care about all of them actually
+  if(stack.size()>0) {
+    int ii = stack.size() - 1;
+  //for(int ii=0;ii<stack.size();ii++){
+    if(
+      (stack[ii].time_pressed != -1)
+      &&
+      (stack[ii].time_unpressed != -1)
+    ) {
+      #if defined(DEBUG) && DEBUG>=10
+      Serial.println("CSWBUTTONS: Marking correct events as complete.");
+      #endif
+      (*buttons_stack)[btn_s_indx].buttonClickStackEvents[ii].is_complete=true;
+    }
+  }
+
+  if((
+    (stack[stack.size()-1].time_unpressed == -1)
+    &&
+    (stack[stack.size()-1].time_pressed != -1)
+    &&
+    (currTime - stack[stack.size()-1].time_pressed > CSWButtons::button_recheck_interval_ms)
+  ) || (
+    (stack[stack.size()-1].time_unpressed != -1)
+    &&
+    (stack[stack.size()-1].time_pressed == -1)
+    &&
+    (currTime - stack[stack.size()-1].time_unpressed > CSWButtons::button_recheck_interval_ms)
+  ))
+   {
+    #if defined(DEBUG) && DEBUG>=10
+    Serial.println("CSWBUTTONS: Marking last incorrect events as complete.");
+    Serial.print("CSWBUTTONS: Time unpressed was:");
+    Serial.println((*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].time_unpressed);
+    Serial.print("CSWBUTTONS: Time pressed was:");
+    Serial.println((*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].time_pressed);
+    #endif
+    (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].time_unpressed = currTime;
+    if(stack[stack.size()-1].time_pressed == -1) (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].time_pressed = (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].time_unpressed-1;
+    (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].is_complete=true;
+  }
+
+  //check for reaching the time limit
+  if(stack[stack.size()-1].is_complete && (
+      (currTime-stack[stack.size()-1].time_unpressed > CSWButtons::button_recheck_interval_longpress_ms)
+      ||
+      (currTime-stack[stack.size()-1].time_unpressed < 0)
+    )
+  ) return true;
+  return false;
+}
+
+void SWbtns::clearClickStack(int pin, bool is_alt) {
+  if(is_alt) {
+    int indx_alt = this->getClickStackIndex(pin, true);
+    if(indx_alt != -1) buttonsClickStackAlt[indx_alt].buttonClickStackEvents.clear();
+  } else {
+    int indx = this->getClickStackIndex(pin, false);
+    if(indx != -1) buttonsClickStack[indx].buttonClickStackEvents.clear();
+  }
+}
+
+void SWbtns::clearAllClickStacks() {
+  buttonsClickStack.clear();
+}
+
+void SWbtns::swapClickStacks(int pin) {
+  #if defined(DEBUG) && DEBUG>=10
+  Serial.print("CSWBUTTONS: Performing SWAP for the pin: ");
+  Serial.println(pin);
+  #endif
+  int indx = this->getClickStackIndex(pin, false);
+  int indx_alt = this->getClickStackIndex(pin, true);
+  if((indx_alt != -1) && (buttonsClickStackAlt[indx_alt].buttonClickStackEvents.size() > 0)) {
+    if(indx == -1) {
+      //we have to create it!
+      buttonEventsStack newButtonEventsStack = {};
+      newButtonEventsStack.PIN = pin;
+      newButtonEventsStack.buttonClickStackEvents = {};
+      buttonsClickStack.push_back(newButtonEventsStack);
+      indx = 0;
+      buttonsClickStack[indx].buttonClickStackEvents = buttonsClickStackAlt[indx_alt].buttonClickStackEvents;
+    } else {
+      //if the alt buffer exists and the main is incomplete
+      //we have to merge them!.... or have we?
+      #if defined(DEBUG) && DEBUG>=10
+      Serial.println("CSWBUTTONS: MERGING (?) buffers.");
+      #endif
+      /*
+      int tempI = 0;
+      if(buttonsClickStack[indx].buttonClickStackEvents[buttonsClickStack[indx].buttonClickStackEvents.size()-1].time_unpressed == -1) {
+        if(buttonsClickStackAlt[indx_alt].buttonClickStackEvents.size() > 0) {
+          buttonsClickStack[indx].buttonClickStackEvents[buttonsClickStack[indx].buttonClickStackEvents.size()-1].time_pressed = buttonsClickStackAlt[indx_alt].buttonClickStackEvents[0].time_pressed;
+          buttonsClickStackAlt[indx_alt].buttonClickStackEvents[buttonsClickStackAlt[indx_alt].buttonClickStackEvents.size()-1].is_complete = true;
+          tempI = 1;
+        }
+      }
+      for(int tempII=tempI;tempII<buttonsClickStackAlt[indx_alt].buttonClickStackEvents.size();tempII++) {
+        buttonsClickStack[indx].buttonClickStackEvents.push_back(buttonsClickStackAlt[indx_alt].buttonClickStackEvents[tempII]);
+      }*/
+      buttonsClickStack[indx].buttonClickStackEvents = buttonsClickStackAlt[indx_alt].buttonClickStackEvents;
+      // Actually we care only about the last item. This is called when we've just processed
+      // the main buffer so we don't have to actually merge it.
+      if(
+        //(buttonsClickStack[indx].buttonClickStackEvents.size()>0)
+        //&&
+        (
+          (buttonsClickStack[indx].buttonClickStackEvents[buttonsClickStack[indx].buttonClickStackEvents.size()-1].time_pressed == -1)
+          && 
+          (buttonsClickStack[indx].buttonClickStackEvents[buttonsClickStack[indx].buttonClickStackEvents.size()-1].time_unpressed != -1)
+        )
+      )
+       {
+        buttonsClickStack[indx].buttonClickStackEvents[buttonsClickStack[indx].buttonClickStackEvents.size()-1].time_pressed = max(buttonsClickStack[indx].buttonClickStackEvents[buttonsClickStack[indx].buttonClickStackEvents.size()-1].time_unpressed-10,0);
+      }
+    }
+    //buttonsClickStack[indx].buttonClickStackEvents = buttonsClickStackAlt[indx_alt].buttonClickStackEvents;
+  } else
+    this->clearClickStack(pin, false);
+  this->clearClickStack(pin, true);
+}
+int SWbtns::getClickStackIndex(int pin, bool is_alt) {
+  t_buttonsStack * stack = &buttonsClickStack;
+  if(is_alt) stack = &buttonsClickStackAlt;
+  for(int i=0; i<(*stack).size();i++) {
+    if((*stack)[i].PIN == pin) return i;
+  }
+  return -1;
+}
+void SWbtns::setButtonStackFimit(int l) {
+  button_click_flow_limit = l;
+}
+int SWbtns::getButtonStackFimit(void) {
+  return button_click_flow_limit;
+}
+void SWbtns::processStack(void) {
+  if(buttonsClickStackLocked || buttonsClickStackAltLocked) {
+    //another instance of processStack is running
+    #if defined(DEBUG) && DEBUG>=10
+    Serial.println("CSWBUTTONS: another instance of processStack is running.");
+    #endif
+    return;
+  }
+  for(buttonEventsStack buttons_stack_el : buttonsClickStack) {
+    int pin = buttons_stack_el.PIN;
+    int indx = this->getClickStackIndex(pin, false);
+    int indx_alt = this->getClickStackIndex(pin, true);
+    if((indx_alt != -1) && (buttonsClickStackAlt[indx_alt].buttonClickStackEvents.size() > 0)) {
+      #if defined(DEBUG) && DEBUG>=10
+      Serial.println("CSWBUTTONS: Found alt buffer. Processing it.");
+      #endif
+      // No checks if the alt buffer is complete or not - we don't care at this moment.
+      if(buttons_stack_el.buttonClickStackEvents.size() == 0) {
+        buttonsClickStackLocked = true;
+        buttonsClickStackAltLocked = true;
+        this->clearClickStack(pin, false);
+        this->swapClickStacks(pin);
+        buttonsClickStackLocked = false;
+        buttonsClickStackAltLocked = false;
+      } else {
+        if(!this->checkClickStackDone(pin, false) ) {
+          // The main queue is NOT complete and the alt queue isn't empty.
+          // Bad situation, should not happen. I'll clear both.
+          #if defined(DEBUG) && DEBUG>=10
+          Serial.println("CSWBUTTONS: The buffers issue happened. They will be cleared.");
+          #endif
+          buttonsClickStackLocked = true;
+          buttonsClickStackAltLocked = true;
+          this->clearClickStack(pin, true);
+          this->clearClickStack(pin, false);
+          buttonsClickStackLocked = false;
+          buttonsClickStackAltLocked = false;
+        } // Otherwise it'll be processed below and NEXT iteration will go to just swap
+      }
+    }
+    if(this->checkClickStackDone(pin, false) ) {
+      #if defined(DEBUG) && DEBUG>=10
+      Serial.println("CSWBUTTONS: Found the click buffer to process. Processing it.");
+      #endif
+      buttonsClickStackLocked = true;
+      int clicks_amount = buttons_stack_el.buttonClickStackEvents.size();
+      //let's process the stack
+      buttonClickStackEvent ell = buttons_stack_el.buttonClickStackEvents[clicks_amount-1];
+      if (( clicks_amount == 1 )
+      &&
+      ((ell.time_unpressed - ell.time_pressed) >= CSWButtons::button_recheck_interval_longpress_ms)) {
+          #if defined(DEBUG) && DEBUG>=10
+          Serial.print("CSWBUTTONS: Calling multiclick LONGPRESS callback! PIN: ");
+          Serial.println(pin);
+          #endif
+          _callbackMulticlick(pin,1,true);
+      } else {
+        #if defined(DEBUG) && DEBUG>=10
+        Serial.print("CSWBUTTONS: Calling multiclick callback! The clicks numer there is: ");
+        Serial.print(clicks_amount);
+        Serial.print("; time between click and unclick diff is: ");
+        Serial.println(ell.time_unpressed - ell.time_pressed);
+        Serial.print("CSWBUTTONS: PIN: ");
+        Serial.println(pin);
+        #endif
+        _callbackMulticlick(pin,clicks_amount,false);
+      }
+      this->clearClickStack(pin, false);
+      buttonsClickStackLocked = false;
+    }
+  }
+  buttonsClickStackLocked = false;
+  buttonsClickStackAltLocked = false;
+}
+#endif
