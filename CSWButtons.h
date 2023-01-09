@@ -8,9 +8,7 @@
   *
   ******************************************************************************
   */
-#ifndef USE_STACK
-#define USE_STACK 1
-#endif
+
 
 #ifndef CSWButtons_h
 #define CSWButtons_h
@@ -31,7 +29,6 @@ struct qButton {
 typedef void (*VoidFunctionWithNoParameters) (void);
 typedef void (*VoidFunctionWithOneParameter) (int);
 
-#if defined(USE_STACK) && (USE_STACK==1)
 struct buttonClickStackEvent {
   int time_pressed=-1;
   int time_unpressed=-1;
@@ -43,7 +40,6 @@ struct buttonEventsStack {
   t_buttonClickStackEvents buttonClickStackEvents;
 };
 typedef std::vector<buttonEventsStack> t_buttonsStack;
-#endif
 
 class CSWButtons{
   public:
