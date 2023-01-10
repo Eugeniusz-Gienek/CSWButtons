@@ -47,23 +47,20 @@ class CSWButtons{
     void addButton(int pin);
     void attachInterrupts(void);
     void tickTimer(void);
-    void resetTimer(void);
     bool checkEventsBlocked(void);
     void setEventsBlocked(bool v);
     void onLongpress(int pin, VoidFunctionWithOneParameter onclick_function);
     void onClick(int pin, VoidFunctionWithOneParameter onclick_function, int click_count=-1);
     void setButtonClickFlowFimit(int l);
-    
-    const static int button_recheck_interval_ms=1000;
+    void setButtonLongpressIntervalms(int i);
+    void setButtonRecheckIntervalms(int i);
+    static int button_recheck_interval_ms;
     static int button_click_flow_limit;
-    const static int button_min_recheck_interval_ms=100;
-    const static int button_recheck_interval_longpress_ms=500;
+    static int button_recheck_interval_longpress_ms;
   private:
     int _button_pin=-1;
     bool _firstRun=true;
     bool _eventsBlocked=false;
-    int _button_press_time=0;
-    int _button_unpress_time=0;
     qButton _button1;
     
 };
