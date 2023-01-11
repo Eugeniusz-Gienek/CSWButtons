@@ -18,7 +18,6 @@ using namespace swbtns;
 #include <sstream>
 
 #define DEBUG 0
-#define IGNOREUNPRESS 1
 
 typedef void (*VoidFunctionWithNoParameters) (void);
 typedef void (*VoidFunctionWithOneParameter) (int);
@@ -26,13 +25,8 @@ typedef void (*VoidFunctionWithOneParameter) (int);
 std::vector<uint8_t> btnPins;
 
 int CSWButtons::button_click_flow_limit=5;
-#if !(defined(IGNOREUNPRESS) && IGNOREUNPRESS>=1)
 int CSWButtons::button_recheck_interval_longpress_ms=500;
 int CSWButtons::button_recheck_interval_ms=1000;
-#else
-int CSWButtons::button_recheck_interval_longpress_ms=500;
-int CSWButtons::button_recheck_interval_ms=1000;
-#endif
 
 template<typename ValueType>
 std::string stringulate(ValueType v)
@@ -67,8 +61,7 @@ class SWbtns
   t_buttonsStack buttonsClickStack;
   // alt click stack is used for the situations when during the processing of the stack
   // there are click events happening and they are processed by the CPU and the code is
-  // executed. Seems to be that ESP doesn't support it YET but when it will be the code 
-  // will just work. Hopefully. For the same reasons the blockers below are introduced.
+  // executed. For the same reasons the blockers below are introduced.
   // BTW we block the selected stack for ALL buttons at once at this moment - thus
   // the blocker vars are just bool's and not having IDs inside them.
   t_buttonsStack buttonsClickStackAlt;
@@ -552,9 +545,7 @@ void SWbtns::addEventToClickStack(int pin,int click_type, int ts) {
   }
   t_buttonClickStackEvents stack = (*buttons_stack)[btn_s_indx].buttonClickStackEvents;
   if((stack.size() == 0) || (stack[stack.size()-1].is_complete)) {
-    #if (defined(IGNOREUNPRESS) && IGNOREUNPRESS>=1)
     if(click_type != CLICK) return;
-    #endif
     #if defined(DEBUG) && DEBUG>=1
     Serial.print("CSWBUTTONS: Adding first ");
     Serial.print((click_type == CLICK) ? "click" : "unclick");
@@ -567,18 +558,6 @@ void SWbtns::addEventToClickStack(int pin,int click_type, int ts) {
     if(click_type == CLICK) {
       bcse.time_pressed = currTime;
     } 
-    #if !(defined(IGNOREUNPRESS) && IGNOREUNPRESS>=1)
-    else {
-      //First element with UNCLICK only? I think smth is off
-      #if defined(DEBUG) && DEBUG>=1
-      Serial.println("CSWBUTTONS: The click event was lost for the first element.");
-      Serial.println("CSWBUTTONS: Fixing broken event.");
-      #endif
-      bcse.time_pressed = max(currTime-10,0);
-      bcse.time_unpressed = max(currTime,0);
-      bcse.is_complete = true;
-    }
-    #endif
     (*buttons_stack)[btn_s_indx].buttonClickStackEvents.push_back(bcse);
   } else {
     // Add the click/unclick event to queue. Stack size is more than zero.
@@ -593,45 +572,8 @@ void SWbtns::addEventToClickStack(int pin,int click_type, int ts) {
         #if defined(DEBUG) && DEBUG>=1
         Serial.println("CSWBUTTONS: We are updating the previously added event without click time.");
         #endif
-
-        #if !(defined(IGNOREUNPRESS) && IGNOREUNPRESS>=1)
-        // This means we are updating the previously added event without click time
-        if((*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].time_unpressed != -1) {
-          (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].time_pressed = (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].time_unpressed-1;
-          (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].is_complete=true;
-        }
-        else
-        #endif
-        {
-          (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].time_pressed = currTime;
-        }
-
+        (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].time_pressed = currTime;
       } else {
-        #if !(defined(IGNOREUNPRESS) && IGNOREUNPRESS>=1)
-        if(stack[stack.size()-1].time_unpressed != -1) {
-          //fixing missing is_complete state
-          (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].is_complete = true;
-          return;
-        }
-        //we've lost the previous unclick because we have time in time_pressed.
-        #if defined(DEBUG) && DEBUG>=1
-        Serial.println("CSWBUTTONS: We've lost the previous unclick because we have time in time_pressed.");
-        #endif
-        if(stack[stack.size()-1].time_pressed > currTime) {
-          //if the system time is changed flush all buffers.
-          #if defined(DEBUG) && DEBUG>=1
-          Serial.println("CSWBUTTONS: System time seem to either overflow or was changed to PAST.");
-          Serial.println("CSWBUTTONS: Buttons buffers will be reset.");
-          #endif
-          this->clearAllClickStacks();
-          return;
-        }
-        #if defined(DEBUG) && DEBUG>=1
-        Serial.println("CSWBUTTONS: Broken click event. Fixing.");
-        #endif
-        (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].time_unpressed = (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].time_pressed+1;
-        (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].is_complete = true;
-        #endif
         // ...and add a new event record
         buttonClickStackEvent bcse;
         bcse.time_pressed = currTime;
@@ -643,7 +585,6 @@ void SWbtns::addEventToClickStack(int pin,int click_type, int ts) {
       #if defined(DEBUG) && DEBUG>=1
       Serial.println("CSWBUTTONS: Unclick event detected.");
       #endif
-      #if (defined(IGNOREUNPRESS) && IGNOREUNPRESS>=1)
       if((stack.size() > 0) && ((*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].time_unpressed != -1)) {
         //it's actually not an unpress but very quick press. YES, that's how the ESP32 works.
         buttonClickStackEvent bcse;
@@ -657,41 +598,6 @@ void SWbtns::addEventToClickStack(int pin,int click_type, int ts) {
         (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].time_unpressed = currTime;
         //(*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].is_complete = true;
       }
-      #else
-      if(stack[stack.size()-1].time_unpressed == -1) {
-        #if defined(DEBUG) && DEBUG>=10
-        Serial.println("CSWBUTTONS: Updating the last event with unclick.");
-        #endif
-        (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].time_unpressed = currTime;
-        if(stack[stack.size()-1].time_pressed == -1) {
-          (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].time_pressed = currTime-1;
-          (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].is_complete = true;
-        }
-      } else {
-        if(stack[stack.size()-1].time_pressed != -1) {
-          //again - fixing issue;
-          (*buttons_stack)[btn_s_indx].buttonClickStackEvents[stack.size()-1].is_complete = true;
-          return;
-        }
-        //we lost the previous CLICK because we have time in time_unpressed.
-        #if defined(DEBUG) && DEBUG>=1
-        Serial.println("CSWBUTTONS: We lost the previous CLICK because we have time in time_unpressed..");
-        #endif
-        if(stack[stack.size()-1].time_unpressed > currTime) {
-          //if the system time is changed flush all buffers.
-          #if defined(DEBUG) && DEBUG>=1
-          Serial.println("CSWBUTTONS: System time seem to either overflow or was changed to PAST.");
-          Serial.println("CSWBUTTONS: Buttons buffers will be reset.");
-          #endif
-          this->clearAllClickStacks();
-          return;
-        }
-        #if defined(DEBUG) && DEBUG>=1
-        Serial.println("CSWBUTTONS: IGNORING the unconnected unclick event.");
-        #endif
-        return;
-      }
-      #endif
     }
   }
 }
@@ -716,68 +622,18 @@ bool SWbtns::checkClickStackDone(int pin, bool is_alt) {
   if(ssz>0) {
     int ii = ssz - 1;
     if(
-      #if !(defined(IGNOREUNPRESS) && IGNOREUNPRESS>=1)
-      (stack[ii].time_pressed != -1)
-      &&
-      (stack[ii].time_unpressed != -1)
-      #else
       (currTime - stack[ii].time_pressed > CSWButtons::button_recheck_interval_ms)
-      #endif
     )
     {
       #if defined(DEBUG) && DEBUG>=10
       Serial.println("CSWBUTTONS: Marking correct events as complete.");
       #endif
       (*buttons_stack)[btn_s_indx].buttonClickStackEvents[ii].is_complete=true;
-      #if (defined(IGNOREUNPRESS) && IGNOREUNPRESS>=1)
-      /*if(((*buttons_stack)[btn_s_indx].buttonClickStackEvents[ii].time_unpressed == -1)
-      && (ssz == 1)) {
-        #if defined(DEBUG) && DEBUG>=1
-        Serial.println("CSWBUTTONS: Marking last event as longress one!");
-        #endif
-        (*buttons_stack)[btn_s_indx].buttonClickStackEvents[ii].time_unpressed = currTime;
-      }*/
-      #endif
     }
   }
-  #if !(defined(IGNOREUNPRESS) && IGNOREUNPRESS>=1)
-  if((
-    (stack[ssz-1].time_unpressed == -1)
-    &&
-    (stack[ssz-1].time_pressed != -1)
-    &&
-    (currTime - stack[ssz-1].time_pressed > CSWButtons::button_recheck_interval_ms)
-  ) || (
-    (stack[ssz-1].time_unpressed != -1)
-    &&
-    (stack[ssz-1].time_pressed == -1)
-    &&
-    (currTime - stack[ssz-1].time_unpressed > CSWButtons::button_recheck_interval_ms)
-  ))
-   {
-    #if defined(DEBUG) && DEBUG>=10
-    Serial.println("CSWBUTTONS: Marking last incorrect events as complete.");
-    Serial.print("CSWBUTTONS: Time unpressed was:");
-    Serial.println((*buttons_stack)[btn_s_indx].buttonClickStackEvents[ssz-1].time_unpressed);
-    Serial.print("CSWBUTTONS: Time pressed was:");
-    Serial.println((*buttons_stack)[btn_s_indx].buttonClickStackEvents[ssz-1].time_pressed);
-    #endif
-    (*buttons_stack)[btn_s_indx].buttonClickStackEvents[ssz-1].time_unpressed = currTime;
-    if(stack[ssz-1].time_pressed == -1) (*buttons_stack)[btn_s_indx].buttonClickStackEvents[ssz-1].time_pressed = (*buttons_stack)[btn_s_indx].buttonClickStackEvents[ssz-1].time_unpressed-1;
-    (*buttons_stack)[btn_s_indx].buttonClickStackEvents[ssz-1].is_complete=true;
-  }
-  #endif
   //check for reaching the time limit
   if(
     stack[ssz-1].is_complete
-    #if !(defined(IGNOREUNPRESS) && IGNOREUNPRESS>=1)
-    && 
-    (
-      (currTime-stack[ssz-1].time_unpressed > CSWButtons::button_recheck_interval_longpress_ms)
-      ||
-      (currTime-stack[ssz-1].time_unpressed < 0)
-    )
-    #endif
   ) return true;
   return false;
 }
@@ -825,20 +681,6 @@ void SWbtns::swapClickStacks(int pin) {
       Serial.println("CSWBUTTONS: MERGING (?) buffers.");
       #endif
       buttonsClickStack[indx].buttonClickStackEvents = buttonsClickStackAlt[indx_alt].buttonClickStackEvents;
-      #if !(defined(IGNOREUNPRESS) && IGNOREUNPRESS>=1)
-      // Actually we care only about the last item. This is called when we've just processed
-      // the main buffer so we don't have to actually merge it.
-      if(
-        (
-          (buttonsClickStack[indx].buttonClickStackEvents[buttonsClickStack[indx].buttonClickStackEvents.size()-1].time_pressed == -1)
-          && 
-          (buttonsClickStack[indx].buttonClickStackEvents[buttonsClickStack[indx].buttonClickStackEvents.size()-1].time_unpressed != -1)
-        )
-      )
-       {
-        buttonsClickStack[indx].buttonClickStackEvents[buttonsClickStack[indx].buttonClickStackEvents.size()-1].time_pressed = max(buttonsClickStack[indx].buttonClickStackEvents[buttonsClickStack[indx].buttonClickStackEvents.size()-1].time_unpressed-10,0);
-      }
-      #endif
     }
   } else
     this->clearClickStack(pin, false);
