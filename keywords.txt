@@ -8,6 +8,12 @@
 
 CSWButtons	KEYWORD1
 SWbtns	KEYWORD1
+qButton	KEYWORD1
+VoidFunctionWithNoParameters	KEYWORD1
+VoidFunctionWithOneParameter	KEYWORD1
+buttonClickStackEvent	KEYWORD1
+t_buttonClickStackEvents	KEYWORD1
+t_buttonsStack	KEYWORD1
 
 #######################################
 # Methods and Functions (KEYWORD2)
@@ -16,10 +22,13 @@ SWbtns	KEYWORD1
 addButton	KEYWORD2
 attachInterrupts	KEYWORD2
 tickTimer	KEYWORD2
-resetTimer	KEYWORD2
 checkEventsBlocked	KEYWORD2
+setEventsBlocked	KEYWORD2
 onLongpress	KEYWORD2
-checkEventsBlocked	KEYWORD2
+onClick	KEYWORD2
+setButtonClickFlowFimit	KEYWORD2
+setButtonLongpressIntervalms	KEYWORD2
+setButtonRecheckIntervalms	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)
@@ -27,5 +36,4 @@ checkEventsBlocked	KEYWORD2
 
 button_recheck_interval_ms	LITERAL1
 button_click_flow_limit	LITERAL1
-button_min_recheck_interval_ms	LITERAL1
 button_recheck_interval_longpress_ms	LITERAL1
